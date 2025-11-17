@@ -1,0 +1,384 @@
+<!-- EJEMPLO DE INTEGRACIÓN DEL SISTEMA DE GEMAS EN CHATS.PHP -->
+
+<!-- 1. Agregar el CSS de gemas en el <head> -->
+<link rel="stylesheet" href="css/gems.css">
+
+<!-- 2. El HTML del menú de usuario ya tiene la estructura correcta: -->
+<!--
+<div class="menu-row">
+  <img class="gem-icon" src="assets/img/gema.png" alt="Gemas" />
+  <span class="gem-count" id="menuUserGems">--</span>
+</div>
+-->
+
+<!-- 3. Agregar botón para ver historial de gemas -->
+<button class="menu-item" id="btnGemsHistory" onclick="window.location.href='mis-gemas.php'">
+  💎 Ver mis gemas
+</button>
+
+<!-- 4. Antes de cerrar el </body>, agregar el script de gemas: -->
+<script src="js/gems-manager.js"></script>
+
+<!-- 5. Modificar el JavaScript existente para inicializar las gemas: -->
+<script>
+  // En la sección donde verificas la autenticación:
+  auth.onAuthStateChanged(async (user) => {
+    if (user) {
+      currentUser = user;
+      
+      // ... código existente ...
+      
+      // NUEVO: Inicializar sistema de gemas
+      try {
+        // Necesitas obtener el user_id de MySQL desde Firestore o sesión PHP
+        const userDoc = await db.collection('users').doc(user.uid).get();
+        if (userDoc.exists) {
+          const userData = userDoc.data();
+          const mysqlUserId = userData.mysqlId || 1; // Asegúrate de guardar esto en Firestore
+          
+          // Inicializar el gestor de gemas
+          await gemsManager.initialize(mysqlUserId);
+          
+          // El balance se actualizará automáticamente en el elemento #menuUserGems
+          console.log('Gemas cargadas:', gemsManager.currentBalance);
+        }
+      } catch (error) {
+        console.error('Error al cargar gemas:', error);
+      }
+    }
+  });
+</script>
+
+<!-- ========================================== -->
+<!-- EJEMPLO DE INTEGRACIÓN EN CREAR-GRUPO.PHP -->
+<!-- ========================================== -->
+
+<!-- Agregar opción de recompensa al crear grupo/tarea -->
+<div class="form-group">
+  <label for="taskReward">Recompensa en gemas</label>
+  <input type="number" 
+         id="taskReward" 
+         class="form-control gems-input" 
+         value="10" 
+         min="5" 
+         max="100"
+         placeholder="Gemas a otorgar">
+  <small class="form-text text-muted">
+    Gemas que recibirá el usuario al completar la tarea
+  </small>
+</div>
+
+<!-- JavaScript para crear tarea con recompensa -->
+<script>
+async function createTaskWithReward(groupId, title, creatorId, assignedTo) {
+  const gemsReward = parseInt(document.getElementById('taskReward').value) || 10;
+  
+  const response = await fetch('php/tasks.php?action=create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      group_id: groupId,
+      title: title,
+      creator_id: creatorId,
+      assigned_to: assignedTo,
+      gems_reward: gemsReward
+    })
+  });
+  
+  const data = await response.json();
+  if (data.success) {
+    alert(`Tarea creada con recompensa de ${gemsReward} 💎`);
+  }
+}
+</script>
+
+<!-- ========================================== -->
+<!-- EJEMPLO DE INTEGRACIÓN EN SIMULADOR.PHP   -->
+<!-- ========================================== -->
+
+<!-- Ya está integrado en simulador.js, pero asegúrate de incluir: -->
+
+<!-- En el <head> -->
+<link rel="stylesheet" href="css/gems.css">
+
+<!-- Antes de cerrar </body> -->
+<script src="js/gems-manager.js"></script>
+
+<!-- Inicializar antes del simulador -->
+<script>
+  // Obtener user_id desde la sesión PHP
+  const currentUserId = <?php echo $_SESSION['user_id'] ?? 'null'; ?>;
+  
+  if (currentUserId) {
+    gemsManager.initialize(currentUserId).then(() => {
+      console.log('Sistema de gemas listo');
+      // Actualizar el máximo del input de apuesta
+      const betInput = document.getElementById('betGems');
+      if (betInput) {
+        betInput.max = gemsManager.currentBalance;
+        betInput.placeholder = `Máximo: ${gemsManager.currentBalance} gemas`;
+      }
+    });
+  }
+</script>
+
+<!-- Agregar display de gemas en la UI del simulador -->
+<div class="gems-balance-display">
+  <span class="label">Tus gemas:</span>
+  <span class="gems-badge" data-gems-display>0</span>
+</div>
+
+<!-- ========================================== -->
+<!-- EJEMPLO: NOTIFICACIÓN AL COMPLETAR TAREA -->
+<!-- ========================================== -->
+
+<script>
+async function completeTask(taskId, userId) {
+  try {
+    const response = await fetch('php/tasks.php?action=update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        task_id: taskId,
+        is_completed: true,
+        completed_by: userId
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success && data.data && data.data.gems_earned) {
+      // Mostrar notificación de gemas ganadas
+      gemsManager.showGemsNotification(
+        data.data.gems_earned,
+        '¡Tarea completada!'
+      );
+      
+      // Actualizar el balance
+      await gemsManager.updateBalance();
+      
+      // Mostrar mensaje
+      alert(`¡Tarea completada! Has ganado ${data.data.gems_earned} 💎`);
+    }
+  } catch (error) {
+    console.error('Error al completar tarea:', error);
+  }
+}
+</script>
+
+<!-- ========================================== -->
+<!-- EJEMPLO: TRANSFERIR GEMAS ENTRE USUARIOS  -->
+<!-- ========================================== -->
+
+<!-- Formulario de transferencia -->
+<div class="transfer-gems-form">
+  <h3>Transferir Gemas</h3>
+  <div class="form-group">
+    <label for="recipientSelect">Destinatario</label>
+    <select id="recipientSelect" class="form-control">
+      <!-- Cargar usuarios dinámicamente -->
+    </select>
+  </div>
+  <div class="form-group">
+    <label for="transferAmount">Cantidad</label>
+    <input type="number" 
+           id="transferAmount" 
+           class="form-control gems-input" 
+           min="1"
+           placeholder="Cantidad de gemas">
+  </div>
+  <div class="form-group">
+    <label for="transferNote">Nota (opcional)</label>
+    <input type="text" 
+           id="transferNote" 
+           class="form-control" 
+           placeholder="Ej: Regalo de cumpleaños">
+  </div>
+  <button onclick="transferGems()" class="btn btn-primary bet-button">
+    Transferir 💎
+  </button>
+</div>
+
+<script>
+async function transferGems() {
+  const recipientId = document.getElementById('recipientSelect').value;
+  const amount = parseInt(document.getElementById('transferAmount').value);
+  const note = document.getElementById('transferNote').value || 'Transferencia de gemas';
+  
+  if (!recipientId || !amount) {
+    alert('Completa todos los campos');
+    return;
+  }
+  
+  try {
+    const result = await gemsManager.transferGems(recipientId, amount, note);
+    
+    alert(`¡Transferencia exitosa! Enviaste ${amount} 💎`);
+    
+    // Limpiar formulario
+    document.getElementById('transferAmount').value = '';
+    document.getElementById('transferNote').value = '';
+    
+  } catch (error) {
+    alert('Error: ' + error.message);
+  }
+}
+</script>
+
+<!-- ========================================== -->
+<!-- EJEMPLO: MOSTRAR HISTORIAL DE TRANSACCIONES -->
+<!-- ========================================== -->
+
+<div class="gems-history-container">
+  <h3>Historial de Gemas</h3>
+  <div id="transactionsList"></div>
+</div>
+
+<script>
+async function loadTransactionsHistory() {
+  const container = document.getElementById('transactionsList');
+  
+  try {
+    const transactions = await gemsManager.getTransactions(20);
+    
+    container.innerHTML = '';
+    
+    if (transactions.length === 0) {
+      container.innerHTML = '<p class="text-muted">No hay transacciones</p>';
+      return;
+    }
+    
+    transactions.forEach(trans => {
+      const isPositive = trans.amount > 0;
+      const div = document.createElement('div');
+      div.className = 'gems-transaction';
+      div.innerHTML = `
+        <div class="gems-transaction-info">
+          <div class="gems-transaction-type">
+            ${formatTransactionType(trans.transaction_type)}
+          </div>
+          <div class="gems-transaction-desc">${trans.description}</div>
+          <div class="gems-transaction-date">
+            ${new Date(trans.created_at).toLocaleString('es-ES')}
+          </div>
+        </div>
+        <div class="gems-transaction-amount ${isPositive ? 'positive' : 'negative'}">
+          ${isPositive ? '+' : ''}${trans.amount} 💎
+        </div>
+      `;
+      container.appendChild(div);
+    });
+  } catch (error) {
+    console.error('Error:', error);
+  }
+}
+
+function formatTransactionType(type) {
+  const types = {
+    'earn': '✅ Ganancia',
+    'spend': '💸 Gasto',
+    'bet_win': '🎉 Apuesta Ganada',
+    'bet_loss': '😢 Apuesta Perdida',
+    'task_reward': '🏆 Recompensa',
+    'transfer_send': '📤 Enviado',
+    'transfer_receive': '📥 Recibido'
+  };
+  return types[type] || type;
+}
+
+// Cargar al iniciar
+document.addEventListener('DOMContentLoaded', () => {
+  loadTransactionsHistory();
+});
+</script>
+
+<!-- ========================================== -->
+<!-- EJEMPLO: VALIDACIÓN DE GEMAS ANTES DE APOSTAR -->
+<!-- ========================================== -->
+
+<script>
+function validateBetAmount(amount) {
+  const input = document.getElementById('betGems');
+  
+  if (!gemsManager.hasEnoughGems(amount)) {
+    input.classList.add('invalid');
+    alert('No tienes suficientes gemas para esta apuesta');
+    return false;
+  }
+  
+  input.classList.remove('invalid');
+  return true;
+}
+
+// Agregar validación en tiempo real
+document.getElementById('betGems')?.addEventListener('input', (e) => {
+  const amount = parseInt(e.target.value);
+  if (amount > gemsManager.currentBalance) {
+    e.target.classList.add('invalid');
+  } else {
+    e.target.classList.remove('invalid');
+  }
+});
+</script>
+
+<!-- ========================================== -->
+<!-- EJEMPLO: INTEGRACIÓN CON PHP SESSION      -->
+<!-- ========================================== -->
+
+<?php
+// En el archivo PHP donde manejas el login
+session_start();
+
+// Después de validar usuario...
+$_SESSION['user_id'] = $user_id; // ID de MySQL
+$_SESSION['firebase_uid'] = $firebase_uid; // UID de Firebase
+$_SESSION['username'] = $username;
+
+// Opcional: guardar las gemas en sesión para acceso rápido
+$stmt = $conn->prepare("SELECT gems FROM users WHERE id = ?");
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$user_data = $result->fetch_assoc();
+$_SESSION['gems'] = $user_data['gems'];
+?>
+
+<!-- Luego en el HTML -->
+<script>
+  // Pasar datos de PHP a JavaScript
+  const userData = {
+    id: <?php echo $_SESSION['user_id']; ?>,
+    username: "<?php echo $_SESSION['username']; ?>",
+    gems: <?php echo $_SESSION['gems'] ?? 0; ?>
+  };
+  
+  console.log('Usuario:', userData);
+</script>
+
+<!-- ========================================== -->
+<!-- CONSEJOS DE OPTIMIZACIÓN                  -->
+<!-- ========================================== -->
+
+<!--
+1. CACHÉ LOCAL:
+   - Guarda el balance en localStorage para mostrar rápido
+   - Actualiza desde el servidor periódicamente
+
+2. ACTUALIZACIÓN EN TIEMPO REAL:
+   - Usa WebSockets para notificar transferencias recibidas
+   - Actualiza el balance cuando otro usuario te envía gemas
+
+3. VALIDACIÓN:
+   - Siempre valida en el backend (PHP)
+   - La validación en JavaScript es solo para UX
+
+4. SEGURIDAD:
+   - Nunca confíes en datos del frontend
+   - Usa prepared statements (ya implementado)
+   - Valida permisos antes de cada transacción
+
+5. UX:
+   - Muestra animaciones al ganar/perder gemas
+   - Usa sonidos para feedback (opcional)
+   - Muestra progreso hacia logros
+-->

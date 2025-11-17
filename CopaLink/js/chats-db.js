@@ -288,6 +288,12 @@ document.addEventListener('DOMContentLoaded', () => {
     menuUserName.textContent = currentUser.username || currentUser.email;
   }
 
+  // Mostrar gemas del usuario en el menú
+  const menuUserGems = document.getElementById('menuUserGems');
+  if (menuUserGems && currentUser.gems !== undefined) {
+    menuUserGems.textContent = currentUser.gems;
+  }
+
   // Cargar lista de usuarios y grupos
   chatListContainer.innerHTML = '';
   loadUsersList();
@@ -853,7 +859,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function initializeWebSocket() {
     // Forzar WSS si la página es HTTPS para evitar Mixed Content
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const wsUrl = `${protocol}://192.168.1.68:3000`;
+    const wsUrl = `${protocol}://192.168.1.69:3000`;
     console.log(`[WS] Conectando a: ${wsUrl}`);
     // Si usas certificados self-signed, el navegador puede advertir o bloquear la conexión.
     // Para desarrollo, acepta el certificado manualmente en https://192.168.1.68:3000 en el navegador.
@@ -1260,7 +1266,8 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           task_id: taskId,
-          is_completed: isCompleted ? 1 : 0
+          is_completed: isCompleted ? 1 : 0,
+          completed_by: currentUser.id
         })
       });
       
@@ -1268,6 +1275,21 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!data.success) {
         console.error('Error al actualizar tarea:', data.message);
       } else {
+        // Si se completó una tarea y se ganaron gemas, actualizar el balance localmente
+        if (data.data && data.data.gems_earned) {
+          console.log(`✓ ¡Tarea completada! Ganaste ${data.data.gems_earned} gemas. Nuevo balance: ${data.data.new_balance}`);
+          
+          // Actualizar el balance de gemas en currentUser
+          currentUser.gems = data.data.new_balance;
+          localStorage.setItem('currentUser', JSON.stringify(currentUser));
+          
+          // Actualizar la UI
+          const menuUserGems = document.getElementById('menuUserGems');
+          if (menuUserGems) {
+            menuUserGems.textContent = currentUser.gems;
+          }
+        }
+        
         // Notificar por WebSocket
         if (socket && socket.connected) {
           socket.emit('task_updated', {

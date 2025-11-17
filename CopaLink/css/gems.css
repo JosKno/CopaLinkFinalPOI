@@ -1,0 +1,305 @@
+/* Estilos para el sistema de gemas */
+
+/* Notificaciones de gemas */
+.gems-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 16px 24px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    transform: translateX(400px);
+    transition: transform 0.3s ease-out;
+    z-index: 10000;
+    min-width: 250px;
+}
+
+.gems-notification.show {
+    transform: translateX(0);
+}
+
+.gems-notification.lost {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.gems-notif-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.gems-amount {
+    font-size: 24px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+.gems-message {
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+/* Display de gemas en la UI */
+.gems-display {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.gems-display::after {
+    content: '💎';
+    font-size: 18px;
+}
+
+/* Badge de gemas */
+.gems-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: rgba(102, 126, 234, 0.1);
+    border: 2px solid #667eea;
+    color: #667eea;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.gems-badge::before {
+    content: '💎';
+}
+
+/* Indicador de gemas insuficientes */
+.gems-insufficient {
+    color: #ef4444;
+    border-color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+    animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+/* Historial de transacciones */
+.gems-transaction {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    transition: background-color 0.2s;
+}
+
+.gems-transaction:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.gems-transaction-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.gems-transaction-type {
+    font-weight: 600;
+    font-size: 14px;
+    color: #1f2937;
+}
+
+.gems-transaction-desc {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.gems-transaction-amount {
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.gems-transaction-amount.positive {
+    color: #10b981;
+}
+
+.gems-transaction-amount.negative {
+    color: #ef4444;
+}
+
+.gems-transaction-date {
+    font-size: 11px;
+    color: #9ca3af;
+}
+
+/* Panel de apuestas mejorado */
+.bet-summary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 16px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+}
+
+.bet-summary-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+}
+
+.bet-summary-label {
+    opacity: 0.9;
+}
+
+.bet-summary-value {
+    font-weight: bold;
+}
+
+/* Animación de gemas ganadas */
+@keyframes gemsPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.gems-win-animation {
+    animation: gemsPulse 0.6s ease-in-out infinite;
+}
+
+/* Botón de apuesta con estado */
+.bet-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.bet-button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+}
+
+.bet-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Input de gemas con validación visual */
+.gems-input {
+    border: 2px solid #e5e7eb;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.2s;
+}
+
+.gems-input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.gems-input.invalid {
+    border-color: #ef4444;
+    background-color: rgba(239, 68, 68, 0.05);
+}
+
+/* Tooltip de gemas */
+.gems-tooltip {
+    position: relative;
+    display: inline-block;
+}
+
+.gems-tooltip .tooltiptext {
+    visibility: hidden;
+    width: 200px;
+    background-color: #1f2937;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 8px;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    margin-left: -100px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    font-size: 12px;
+}
+
+.gems-tooltip:hover .tooltiptext {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Tabla de apuestas */
+.bets-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.bets-table th {
+    background-color: #f3f4f6;
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    color: #374151;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.bets-table td {
+    padding: 12px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.bet-status {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.bet-status.pending {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.bet-status.won {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.bet-status.lost {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+/* Responsivo */
+@media (max-width: 768px) {
+    .gems-notification {
+        right: 10px;
+        left: 10px;
+        min-width: auto;
+    }
+    
+    .gems-notification.show {
+        transform: translateY(0);
+    }
+    
+    .gems-notification {
+        transform: translateY(-200px);
+    }
+}

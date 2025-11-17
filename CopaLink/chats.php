@@ -8,6 +8,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="css/landing.css" />
   <link rel="stylesheet" href="css/chats.css" />
+  <link rel="stylesheet" href="css/gems.css" />
 </head>
 <body>
   <div class="hero__bg" aria-hidden="true"></div>
@@ -29,7 +30,7 @@
           </div>
           <div class="menu-row">
             <img class="gem-icon" src="assets/img/gema.png" alt="Gemas" />
-            <span class="gem-count" id="menuUserGems">--</span>
+            <span class="gem-count" id="menuUserGems" data-gems-display>--</span>
           </div>
           <button class="menu-item" id="btnEncrypt">Cifrar chats</button>
           <button class="menu-item danger" id="btnLogoutMenu">Cerrar sesión</button>
@@ -191,6 +192,8 @@
   <!-- Supabase Storage -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4/dist/umd/supabase.js"></script>
   <script src="js/supabase-config.js"></script>
+  <!-- Sistema de Gemas -->
+  <script src="js/gems-manager.js"></script>
   <script src="js/chats-db.js"></script>
 </body>
 </html>

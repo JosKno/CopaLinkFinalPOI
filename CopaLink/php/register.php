@@ -66,8 +66,10 @@ if ($result_check->num_rows > 0) {
     $stmt_insert->bind_param("sss", $username, $email, $hashed_password);
 
     if ($stmt_insert->execute()) {
+        $user_id = $stmt_insert->insert_id;
         $response['success'] = true;
         $response['message'] = '¡Registro exitoso! Ahora puedes iniciar sesión.';
+        $response['user_id'] = $user_id; // Devolver el ID del usuario creado
     } else {
         $response['message'] = 'Error al crear la cuenta. Inténtalo de nuevo.';
         // Para depuración: $response['error'] = $stmt_insert->error;

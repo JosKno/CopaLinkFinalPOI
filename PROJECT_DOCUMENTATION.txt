@@ -1,0 +1,350 @@
+==============================
+COPALINK – DOCUMENTACIÓN DETALLADA
+==============================
+
+Contenido:
+1. Visión general del proyecto
+2. Funcionalidades principales
+3. Tecnologías empleadas y justificación
+4. Arquitectura y flujo lógico (front ↔ backend ↔ WebSocket)
+5. Modelo de datos (MySQL)
+6. Lógica de cada módulo PHP (API REST ligera)
+7. Lógica del cliente (chats-db.js, videollamadas/WebRTC, adjuntos, tareas)
+8. WebSocket: servidor, eventos y presencia
+9. Integraciones externas (Firebase / Supabase)
+10. Seguridad y puntos a mejorar
+11. Explicación archivo por archivo (qué hace y relaciones)
+12. Flujo detallado de casos de uso (login, enviar mensaje, crear grupo, videollamada, adjunto)
+13. Extensiones futuras sugeridas
+
+----------------------------------
+1. VISIÓN GENERAL
+----------------------------------
+CopaLink es una aplicación web de mensajería y colaboración ligera orientada a grupos de usuarios para chatear, compartir archivos, administrar tareas simples y realizar videollamadas entre dos usuarios usando WebRTC. Se apoya en:
+ - PHP + MySQL para autenticación, persistencia y endpoints de datos
+ - Socket.IO (Node.js) para eventos en tiempo real (presencia, mensajes, tareas, señalización WebRTC)
+ - JavaScript en el navegador para UI dinámica y comunicación con backend
+ - Supabase para almacenamiento de archivos (opcional) y Firebase para futuras extensiones (ej. Firestore/Auth alternativo)
+
+El diseño es modular: los endpoints PHP mantienen la lógica CRUD y el servidor WebSocket solo distribuye eventos de tiempo real y señaliza WebRTC. El cliente sincroniza estado cada pocos segundos (polling selectivo) y reacciona a eventos push.
+
+----------------------------------
+2. FUNCIONALIDADES PRINCIPALES
+----------------------------------
+Listado resumido:
+ - Registro e inicio de sesión de usuarios (hash BCRYPT, validaciones básicas).
+ - Estado de conexión (online/offline) con último visto (last_seen).
+ - Chats privados entre dos usuarios.
+ - Chats grupales con membresía (group_members).
+ - Envío y recepción de mensajes persistentes (texto + adjuntos).
+ - Adjuntos: imágenes, videos, archivos genéricos y ubicación (link Google Maps).
+ - Tareas por grupo (crear, listar, marcar completadas). Notificación en tiempo real.
+ - Presencia en tiempo real (cambios de estado via WS + actualización en DB).
+ - Videollamada 1:1 mediante WebRTC (oferta, respuesta, ICE, colgar).
+ - Actualización de lista de chats y mensajes con polling y eventos push combinados.
+ - Búsqueda y filtrado en la lista de usuarios/grupos.
+ - Interfaz responsiva con panel lateral y overlays.
+
+----------------------------------
+3. TECNOLOGÍAS EMPLEADAS Y JUSTIFICACIÓN
+----------------------------------
+ - PHP + MySQL: Fácil despliegue en XAMPP, suficiente para CRUD y autenticación.
+ - Node.js + Socket.IO: Simplifica comunicación en tiempo real y compatibilidad con navegadores.
+ - WebRTC: Estándar para videollamadas P2P sin servidor multimedia dedicado (solo señalización).
+ - Supabase Storage: Alternativa sencilla para almacenar archivos sin configurar infraestructura propia.
+ - Firebase: Incluido para posible migración o uso de Firestore, analytics, auth social, etc.
+ - Bootstrap: Rapidez en maquetado responsivo.
+
+----------------------------------
+4. ARQUITECTURA Y FLUJO LÓGICO
+----------------------------------
+CAPAS:
+ - Cliente (Browser): HTML + CSS + JS (chats-db.js) maneja UI, eventos, WebRTC, y consume APIs.
+ - Backend REST (PHP): Endpoints (login, register, users, groups, messages, tasks) responden JSON y acceden a MySQL.
+ - Servidor WebSocket (Node.js): Distribuye eventos en tiempo real y realiza señalización WebRTC.
+ - Base de datos (MySQL): Almacena usuarios, grupos, mensajes, archivos, tareas.
+ - Almacenamiento externo (Supabase): Guarda archivos y provee URL pública.
+
+FLUJO EJEMPLO (Enviar mensaje privado):
+ 1. Cliente escribe y pulsa Enviar.
+ 2. JS llama `php/messages.php?action=send` con POST JSON.
+ 3. PHP valida remitente/destinatario y persiste en `messages` (+ `files` si adjunto).
+ 4. PHP retorna `message_id`.
+ 5. Cliente emite por WebSocket `send_message` con payload enriquecido.
+ 6. Servidor WebSocket reenvía a destinatario (si conectado) y confirma a remitente.
+ 7. Cliente destinatario actualiza vista inmediatamente.
+ 8. Polling cada 3s asegura sincronización redundante (garantiza consistencia si se perdió evento).
+
+----------------------------------
+5. MODELO DE DATOS (MySQL)
+----------------------------------
+Tablas clave (resumen campos relevantes):
+ - users(id, username, email, password, connection_status, last_seen, created_at)
+ - groups(id, name, creator_id, created_at)
+ - group_members(group_id, user_id, joined_at)
+ - messages(id, sender_id, recipient_id, group_id, content, is_encrypted, created_at)
+ - files(id, message_id, file_name, file_path, file_type, uploaded_at)
+ - tasks(id, group_id, title, creator_id, is_completed, created_at)
+ - rewards / user_rewards (estructura diseñada para gamificación futura, aún no integrada en lógica JS actual).
+
+Relaciones:
+ - messages → users (sender_id) y (recipient_id opcional) / groups (group_id opcional).
+ - files → messages (1:N archivos por mensaje).
+ - tasks → groups y users (creator_id).
+ - group_members vincula usuarios con grupos (composite PK).
+
+----------------------------------
+6. LÓGICA DE CADA MÓDULO PHP
+----------------------------------
+Generalidades:
+ - Cada archivo define `action` vía query string o POST.
+ - Entrada JSON (file_get_contents('php://input')).
+ - Respuestas uniformes: { success, message, data }.
+ - Uso de prepared statements para prevenir SQL injection básica.
+
+php/login.php:
+ - POST con email/password.
+ - Busca usuario, verifica hash (password_verify), actualiza estado online y last_seen.
+ - Devuelve objeto usuario sin contraseña.
+
+php/register.php:
+ - POST con username, email, password.
+ - Valida duplicados, formato y longitud mínima.
+ - Inserta usuario con password BCRYPT.
+
+php/logout.php:
+ - POST con user_id.
+ - Marca usuario offline y actualiza last_seen.
+
+php/users.php:
+ - get_list(user_id): Lista otros usuarios con su estado.
+ - get_profile(profile_id): Perfil completo de un usuario.
+ - update_status(user_id, status): Consumido por WebSocket para reflejar presencia.
+
+php/groups.php:
+ - create(name, creator_id, members[]): Transacción; crea grupo y añade miembros.
+ - get_list(user_id): Grupos donde participa el usuario (incluye member_count).
+ - get_members(group_id): Lista miembros con metadatos.
+ - add_member(group_id, user_id): Inserta miembro; controla duplicados por PK compuesta.
+
+php/messages.php:
+ - send: Inserta mensaje y opcionalmente registro en files (adjuntos).
+ - get: Recupera conversación privada (dos usuarios) o de grupo.
+ - delete(message_id): Elimina mensaje (no implementa cascada manual para files por FK ON DELETE CASCADE).
+
+php/tasks.php:
+ - create(group_id, title, creator_id): Nueva tarea.
+ - get_list(group_id): Lista tareas ordenadas (no completadas primero).
+ - update(task_id, is_completed): Marca completada.
+ - delete(task_id): Elimina (no se expone en UI actual).
+
+----------------------------------
+7. LÓGICA DEL CLIENTE (chats-db.js PRINCIPAL)
+----------------------------------
+Responsabilidades:
+ - Autenticación local: lee `currentUser` desde localStorage (establecido tras login).
+ - Render dinámico de lista de usuarios y grupos (filtros y búsqueda en memoria).
+ - Apertura de chat: fija `currentChatId` y tipo (private/group), carga mensajes vía fetch, inicia polling 3s.
+ - Envío de mensajes: POST a backend, luego emitir evento WebSocket.
+ - Adjuntos: Usa Supabase para subir; persiste URL en BD como mensaje; reenvía evento.
+ - Ubicación: Google Maps link + registro persistente.
+ - Tareas: CRUD simplificado + eventos WebSocket `task_created` / `task_updated`.
+ - Presencia: Actualiza avatars y subtítulos al recibir `user_status_change`.
+ - Videollamada: Señalización WebRTC por canales socket:
+   * Emite `webrtc_offer`, recibe `webrtc_answer`, intercambia `webrtc_ice_candidate`, finaliza con `webrtc_end_call`.
+   * Controla overlay, tracks locales/remotos, cola ICE antes de remoteDescription.
+ - WebSocket dinámico: construye ws://hostname:3000 o wss según protocolo (permite overrides vía localStorage).
+
+Optimización aplicada:
+ - Hash rápido (`lastMessagesHash`) para evitar re-render si no hay cambios.
+ - Scroll inteligente: solo auto-scroll si el usuario está cerca del final.
+
+----------------------------------
+8. WEBSOCKET: SERVIDOR Y EVENTOS
+----------------------------------
+Archivo: `websocket/server.js`
+ - Inicia Express con CORS abierto (mejor restringir en producción).
+ - Intenta HTTPS con PFX o key+cert; fallback a HTTP.
+ - Mantiene mapas: connectedUsers(userId → socketId) y userSockets(socketId → userData).
+ - updateUserStatusInDB(): POST interno a endpoint PHP para reflejar presencia (online/offline) y last_seen.
+ - Eventos principales:
+   * connection / disconnect: Administra mapas y emite `user_status_change`.
+   * user_connected(userData): Registra usuario y marca estado online.
+   * send_message(data): Reenvía a destinatario (privado) o emite broadcast (grupo).
+   * typing(data): Notifica indicador de escritura (privado o grupo broadcast).
+   * task_created / task_updated: Broadcast para sincronizar panel de tareas.
+   * WebRTC: webrtc_offer, webrtc_answer, webrtc_ice_candidate, webrtc_end_call.
+
+Señalización WebRTC explicada:
+ 1. Usuario A crea RTCPeerConnection, obtiene medios y genera oferta (SDP).
+ 2. Emite `webrtc_offer` con sdp y from_user_id.
+ 3. Servidor busca socket destino (to_user_id) y reenvía.
+ 4. Usuario B confirma, crea answer y la envía vía `webrtc_answer`.
+ 5. Ambos intercambian ICE candidates mediante `webrtc_ice_candidate`.
+ 6. Cualquiera puede finalizar con `webrtc_end_call`.
+
+----------------------------------
+9. INTEGRACIONES EXTERNAS
+----------------------------------
+Firebase (`js/firebase-config.js`): Inicializa app con config pública. Se incluye para futuras funciones (no se usa en `chats-db.js` actual directamente, sí en `chats.js` alternativo). Firestore podría reemplazar MySQL + polling.
+
+Supabase (`js/supabase-config.js`): Crea cliente global y helper `supabaseUpload(file, type)`:
+ - Sube archivo al bucket `chat-media` dividido en carpetas por tipo.
+ - Obtiene URL pública y retorna metadatos para guardarse en mensaje.
+ - Tipos: image, video, file. (Ubicación se maneja como link externo)
+
+----------------------------------
+10. SEGURIDAD Y PUNTOS A MEJORAR
+----------------------------------
+Actual:
+ - Contraseñas BCRYPT.
+ - Prepared statements (prevención básica de inyección SQL).
+ - Sin tokens de sesión (usa localStorage sin expiración → susceptible a robo de sesión).
+ - CORS abierto en WebSocket.
+ - No se valida tamaño/tipo de archivo en PHP (se confía en Supabase y el cliente).
+ - WebRTC sin TURN server: en redes estrictas puede fallar.
+
+Mejoras recomendadas:
+ - Implementar JWT o sesiones PHP con expiración y CSRF tokens.
+ - Validar mime y tamaño de adjuntos antes de persistir registro.
+ - Limitar origen CORS y Socket.IO.
+ - Añadir índice compuesto para búsquedas frecuentes (ej. messages por (group_id, created_at)).
+ - Integrar servidor TURN (ej. coturn) para robustez WebRTC.
+ - Sanitizar salida HTML más exhaustivamente (escape ya aplicado, pero revisar file_name).
+
+----------------------------------
+11. EXPLICACIÓN ARCHIVO POR ARCHIVO
+----------------------------------
+BD/Connection.php:
+ - Abre conexión MySQL (host, user, pass, db). Usado por todos los controladores PHP.
+
+BD/database.sql:
+ - Esquema completo de tablas. Fuente de verdad del modelo.
+
+CopaLink/index.php:
+ - Landing inicial con enlaces a login/registro.
+
+CopaLink/login.php & register.php:
+ - Formularios que consumen endpoints PHP de login/registro.
+ - Guardan `currentUser` en localStorage.
+
+CopaLink/chats.php:
+ - Vista principal de chats, carga scripts `chats-db.js`, Supabase y Socket.IO.
+ - Contiene layout: sidebar, panel de conversación, overlay de videollamada, menú usuario.
+
+CopaLink/crear-grupo.php (no detallado en lectura, presumiblemente formulario para crear grupos):
+ - Consumiría `php/groups.php?action=create`.
+
+CopaLink/simulador.php:
+ - Pantalla separada (no analizada en detalle). Interfaz para simulador Mundial (lógica independiente).
+
+CopaLink/debug_video.php:
+ - Página auxiliar probable para test de video/llamada (no leído aquí; deducido por nombre).
+
+CSS (landing.css, register.css, chats.css, simulador.css):
+ - Estilos para vistas específicas (layout, fondos, componentes de chat, panel lateral, etc.).
+
+JS/auth.js (no leído):
+ - Probablemente lógica antigua o alternativa de autenticación (Firebase?).
+
+JS/chats-db.js:
+ - Versión activa del sistema de chat sobre MySQL + WebSocket.
+ - Maneja UI dinámica, polling, señalización WebRTC, adjuntos Supabase.
+
+JS/chats.js:
+ - Variante que parece usar Firebase Firestore (mensajes live, colección 'chats'). Representa camino alternativo.
+
+JS/crear-grupo.js (no leído):
+ - Lógica de formulario de creación de grupos; llamará a endpoint groups.php.
+
+JS/firebase-config.js:
+ - Config e inicialización de Firebase App.
+
+JS/supabase-config.js:
+ - Cliente Supabase global + helper de carga de archivos.
+
+JS/simulador.js (no leído):
+ - Lógica del simulador (fixtures, cálculo de resultados). Independiente del sistema de chat.
+
+PHP/login.php, register.php, logout.php:
+ - Autenticación y manejo de estado básico.
+
+PHP/users.php:
+ - Operaciones sobre usuarios (lista, perfil, actualización de estado).
+
+PHP/groups.php:
+ - CRUD parcial de grupos y membresía.
+
+PHP/messages.php:
+ - Inserción, recuperación y eliminación de mensajes con soporte de adjuntos.
+
+PHP/tasks.php:
+ - CRUD básico de tareas vinculadas a grupos.
+
+websocket/server.js:
+ - Servidor Node/Socket.IO con HTTPS opcional, presencia y señalización WebRTC.
+
+websocket/package.json:
+ - Scripts npm (start / dev), dependencias Socket.IO, Express, CORS.
+
+websocket/certs/*:
+ - Certificados self-signed y scripts PowerShell para generarlos.
+
+README.md (raíz):
+ - Guía rápida de instalación y ejecución local.
+
+PROJECT_DOCUMENTATION.txt (este archivo):
+ - Documentación exhaustiva para desarrolladores/evaluadores.
+
+----------------------------------
+12. FLUJO DETALLADO DE CASOS DE USO
+----------------------------------
+A) Registro:
+ - Usuario completa formulario → fetch POST php/register.php → validaciones → inserción → mensaje éxito.
+
+B) Login:
+ - Formulario → POST php/login.php → verifica contraseña → marca online → guarda user en localStorage → redirige a chats.php.
+
+C) Abrir chat privado:
+ - Usuario selecciona otro usuario → set currentChatId → fetch mensajes (recipient_id) → render → inicia polling.
+
+D) Crear grupo (deducido):
+ - Formulario incluye nombre y miembros → POST php/groups.php?action=create → transacción → devuelve group_id → aparece en lista.
+
+E) Enviar mensaje:
+ - POST a messages.php → inserción → recibe message_id → emite send_message por WebSocket → destinatario render inmediato.
+
+F) Adjuntar imagen/video/archivo:
+ - Seleccionar archivo → subir a Supabase (supabaseUpload) → obtener URL → persistir mensaje como adjunto → emitir evento.
+
+G) Compartir ubicación:
+ - Geolocation API → construir link → persistir como mensaje con attachment_type=location.
+
+H) Videollamada:
+ - Click videollamada → startCall() → preparePeer (getUserMedia) → createOffer → emitir webrtc_offer.
+ - Receptor recibe oferta → openChat si necesario → confirm → preparePeer → setRemoteDescription → createAnswer → emitir webrtc_answer.
+ - Ambos intercambian ICE → muestran video local/remoto → finalizan con endCall (webrtc_end_call).
+
+I) Tareas de grupo:
+ - Crear tarea → POST tasks.php?action=create → emite task_created → miembros refrescan lista.
+ - Marcar completada → POST update → emite task_updated → refresca UI.
+
+J) Presencia:
+ - Al conectar WebSocket: user_connected → servidor marca online (update_status) → broadcast user_status_change → cliente actualiza avatar y subtítulo.
+ - Al desconectar: disconnect → update_status offline → broadcast.
+
+----------------------------------
+13. EXTENSIONES FUTURAS SUGERIDAS
+----------------------------------
+ - Cifrado extremo a extremo opcional (columnas is_encrypted + manejo de claves en cliente).
+ - Historial de llamadas y métricas.
+ - Integración de TURN y grabación de video (requiere servidor adicional).
+ - Consolidar modelo de interacción (reemplazar polling por sólo WebSocket + confirmaciones).
+ - Paginar mensajes y cargar bajo demanda (scroll infinito).
+ - Sistema de notificaciones push (Service Workers) y PWA.
+ - Integrar gamificación (tablas rewards y user_rewards) en UI.
+ - Migrar a un framework SPA (React/Vue) para mayor escalabilidad.
+
+==============================
+FIN DEL DOCUMENTO
+==============================

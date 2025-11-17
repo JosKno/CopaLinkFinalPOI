@@ -46,17 +46,41 @@ document.addEventListener('DOMContentLoaded', () => {
           displayName: name
         });
 
-        // 3. (Opcional pero recomendado) Guardar info extra en Firestore
-        // Esto es útil para buscar usuarios, ver sus gemas, etc.
+        // 3. Registrar el usuario en MySQL para obtener el ID
+        let mysqlUserId = null;
+        try {
+          const mysqlResponse = await fetch('php/register.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              username: name,
+              email: email,
+              password: password
+            })
+          });
+          const mysqlData = await mysqlResponse.json();
+          
+          if (mysqlData.success) {
+            mysqlUserId = mysqlData.user_id;
+            console.log('Usuario registrado en MySQL con ID:', mysqlUserId);
+          } else {
+            console.warn('Error al registrar en MySQL:', mysqlData.message);
+          }
+        } catch (mysqlError) {
+          console.error('Error al comunicarse con MySQL:', mysqlError);
+        }
+
+        // 4. Guardar info extra en Firestore (incluido el mysqlId)
         await db.collection('users').doc(user.uid).set({
           uid: user.uid,
           displayName: name,
           email: email,
+          mysqlId: mysqlUserId, // ID de MySQL para sincronización
           createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          gems: 0 // Inician con 0 gemas
+          gems: 100 // Gemas iniciales (se sincronizarán desde MySQL)
         });
 
-        // 4. Redirigir a la página de chats
+        // 5. Redirigir a la página de chats
   window.location.href = 'chats.php';
 
       } catch (error) {

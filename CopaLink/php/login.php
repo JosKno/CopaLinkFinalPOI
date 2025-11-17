@@ -25,7 +25,7 @@ if (!$email || !$password) {
     exit;
 }
 
-$stmt = $conn->prepare('SELECT id, username, email, password, connection_status FROM users WHERE email = ?');
+$stmt = $conn->prepare('SELECT id, username, email, password, gems, connection_status FROM users WHERE email = ?');
 $stmt->bind_param('s', $email);
 $stmt->execute();
 $result = $stmt->get_result();

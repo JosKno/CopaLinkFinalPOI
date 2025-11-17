@@ -3,7 +3,7 @@
 
 $certPath = $PSScriptRoot
 $certName = "CopaLink WebSocket Server"
-$dnsName = "192.168.1.68"  # Tu IP local
+$dnsName = "192.168.1.69"  # Tu IP local
 
 Write-Host "Generando certificado self-signed para $dnsName..." -ForegroundColor Cyan
 

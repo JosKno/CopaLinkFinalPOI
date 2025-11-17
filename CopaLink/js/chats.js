@@ -133,8 +133,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const userDoc = await db.collection('users').doc(user.uid).get();
         if (userDoc.exists) {
           const userData = userDoc.data();
+          
+          // Mostrar las gemas inmediatamente desde Firestore
           if (menuUserGems) {
             menuUserGems.textContent = userData.gems || 0;
+            console.log('Gemas del usuario:', userData.gems || 0);
           }
         } else {
           console.warn('El documento del usuario no existe en Firestore.');
