@@ -10,6 +10,10 @@ document.addEventListener('DOMContentLoaded', () => {
   let allGroups = []; // Almacenar todos los grupos
   let currentFilter = 'all'; // 'all', 'chats', 'groups'
   let searchQuery = ''; // Término de búsqueda actual
+  
+  // Estado de cifrado (persistente en localStorage)
+  let encryptionEnabled = localStorage.getItem('encryptionEnabled') === 'true';
+  const ENCRYPTION_KEY = 'CopaLink2026Secret'; // Clave para cifrado (en producción usar una más segura)
 
   // Selectores
   const chatListContainer = document.getElementById('chatListContainer');
@@ -25,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnHome = document.getElementById('btnHome');
   const menuUserName = document.getElementById('menuUserName');
   const btnLogoutMenu = document.getElementById('btnLogoutMenu');
+  const btnEncrypt = document.getElementById('btnEncrypt');
   const btnUserMenu = document.getElementById('btnUserMenu');
   const dropdown = document.getElementById('userDropdown');
   const btnMore = document.getElementById('btnMore');
@@ -120,14 +125,18 @@ document.addEventListener('DOMContentLoaded', () => {
     else if (type === 'video') contentText = '[Video]';
     else if (fileName) contentText = fileName;
     
+    // Cifrar el texto descriptivo si el cifrado está activado
+    const messageContent = encryptionEnabled ? encryptMessage(contentText) : contentText;
+    
     const payload = {
       sender_id: currentUser.id,
       recipient_id: currentChatType === 'private' ? currentChatId : undefined,
       group_id: currentChatType === 'group' ? currentChatId : undefined,
-      content: contentText,
+      content: messageContent,
       attachment: { url, type, fileName },
       created_at: new Date().toISOString(),
-      username: currentUser.username || currentUser.email
+      username: currentUser.username || currentUser.email,
+      is_encrypted: encryptionEnabled
     };
 
     try {
@@ -176,10 +185,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const locationText = `📍 Ubicación: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
 
         try {
+          // Cifrar el texto de ubicación si el cifrado está activado
+          const messageContent = encryptionEnabled ? encryptMessage(locationText) : locationText;
+          
           const messageData = {
             sender_id: currentUser.id,
-            content: locationText,
-            is_encrypted: false,
+            content: messageContent,
+            is_encrypted: encryptionEnabled,
             attachment_url: locationUrl,
             attachment_type: 'location',
             attachment_name: 'Ubicación compartida'
@@ -372,6 +384,44 @@ document.addEventListener('DOMContentLoaded', () => {
   btnLogoutMenu?.addEventListener('click', async () => {
     await logout();
   });
+
+  // Botón de cifrado/descifrado
+  btnEncrypt?.addEventListener('click', () => {
+    encryptionEnabled = !encryptionEnabled;
+    localStorage.setItem('encryptionEnabled', encryptionEnabled);
+    updateEncryptButton();
+    
+    const status = encryptionEnabled ? 'activado' : 'desactivado';
+    const icon = encryptionEnabled ? '🔒' : '🔓';
+    
+    // Mostrar notificación
+    showNotification(`${icon} Cifrado ${status}`, encryptionEnabled ? 'success' : 'info');
+  });
+
+  // Actualizar texto del botón según el estado
+  function updateEncryptButton() {
+    if (btnEncrypt) {
+      btnEncrypt.innerHTML = encryptionEnabled 
+        ? '🔓 Descifrar chats' 
+        : '🔒 Cifrar chats';
+      
+      // Agregar indicador visual en el input cuando está cifrado
+      if (msgInput) {
+        if (encryptionEnabled) {
+          msgInput.style.borderColor = '#4ade80';
+          msgInput.style.boxShadow = '0 0 0 2px rgba(74, 222, 128, 0.2)';
+          msgInput.placeholder = '🔒 Escribe un mensaje cifrado';
+        } else {
+          msgInput.style.borderColor = '';
+          msgInput.style.boxShadow = '';
+          msgInput.placeholder = 'Escribe un mensaje';
+        }
+      }
+    }
+  }
+
+  // Inicializar el botón con el estado correcto
+  updateEncryptButton();
 
   btnUserMenu?.addEventListener('click', () => {
     dropdown.hidden = !dropdown.hidden;
@@ -633,6 +683,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     await loadMessages();
     
+    // Actualizar indicador visual de cifrado
+    updateEncryptButton();
+    
     // Actualizar mensajes cada 3 segundos
     if (messageInterval) clearInterval(messageInterval);
     messageInterval = setInterval(loadMessages, 3000);
@@ -677,6 +730,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const msgDiv = document.createElement('div');
       msgDiv.className = `msg ${isMe ? 'msg-me' : 'msg-peer'}`;
       
+      // Descifrar el mensaje si está cifrado
+      let displayContent = msg.content;
+      if (msg.is_encrypted && encryptionEnabled) {
+        displayContent = decryptMessage(msg.content);
+      } else if (msg.is_encrypted && !encryptionEnabled) {
+        displayContent = '🔒 [Mensaje cifrado - Activa el cifrado para ver]';
+      }
+      
       let innerHTML = '';
       
       // Si es grupo y el mensaje NO es mío: mostrar nombre + gemas
@@ -710,7 +771,7 @@ document.addEventListener('DOMContentLoaded', () => {
           </video>`;
         } else if (msg.file_type === 'location') {
           innerHTML += `<div style="margin-top:6px;">
-            ${escapeHtml(msg.content)}<br>
+            ${escapeHtml(displayContent)}<br>
             <a href="${escapeHtml(msg.file_path)}" target="_blank" class="btn btn-sm btn-primary" style="margin-top:4px;">
               🗺️ Ver en Google Maps
             </a>
@@ -720,7 +781,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } else {
         // Solo mostrar el texto si NO hay adjunto
-        innerHTML += `${escapeHtml(msg.content)}`;
+        innerHTML += `${escapeHtml(displayContent)}`;
       }
 
       innerHTML += `<span class="time">${formatTime(msg.created_at)}</span>`;
@@ -739,10 +800,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!content || !currentChatId) return;
     
     try {
+      // Cifrar el mensaje si el cifrado está activado
+      const messageContent = encryptionEnabled ? encryptMessage(content) : content;
+      
       const messageData = {
         sender_id: currentUser.id,
-        content: content,
-        is_encrypted: false
+        content: messageContent,
+        is_encrypted: encryptionEnabled
       };
       
       if (currentChatType === 'private') {
@@ -786,7 +850,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const messageData = {
       sender_id: payload.sender_id,
       content: payload.content,
-      is_encrypted: false,
+      is_encrypted: encryptionEnabled,
       attachment_url: payload.attachment.url,
       attachment_type: payload.attachment.type,
       attachment_name: payload.attachment.fileName || ''
@@ -825,6 +889,97 @@ document.addEventListener('DOMContentLoaded', () => {
     if (panel) panel.classList.remove('mobile-visible');
   }
 
+  // ==================== FUNCIONES DE CIFRADO ====================
+  
+  // Función simple de cifrado usando XOR con la clave
+  function encryptMessage(text) {
+    if (!encryptionEnabled || !text) return text;
+    
+    try {
+      let encrypted = '';
+      for (let i = 0; i < text.length; i++) {
+        const charCode = text.charCodeAt(i) ^ ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length);
+        encrypted += String.fromCharCode(charCode);
+      }
+      // Convertir a Base64 para que sea seguro de transmitir
+      return btoa(encrypted);
+    } catch (e) {
+      console.error('Error al cifrar:', e);
+      return text;
+    }
+  }
+
+  // Función de descifrado
+  function decryptMessage(encryptedText) {
+    if (!encryptionEnabled || !encryptedText) return encryptedText;
+    
+    try {
+      // Decodificar de Base64
+      const encrypted = atob(encryptedText);
+      let decrypted = '';
+      for (let i = 0; i < encrypted.length; i++) {
+        const charCode = encrypted.charCodeAt(i) ^ ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length);
+        decrypted += String.fromCharCode(charCode);
+      }
+      return decrypted;
+    } catch (e) {
+      console.error('Error al descifrar:', e);
+      return encryptedText;
+    }
+  }
+
+  // Función para mostrar notificaciones temporales
+  function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      z-index: 10001;
+      background: ${type === 'success' ? 'linear-gradient(135deg, #00b09b, #96c93d)' : 'linear-gradient(135deg, #667eea, #764ba2)'};
+      color: white;
+      padding: 16px 24px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-weight: 500;
+      animation: slideInRight 0.3s ease-out;
+    `;
+    notification.textContent = message;
+    
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes slideInRight {
+        from {
+          opacity: 0;
+          transform: translateX(100px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+      @keyframes slideOutRight {
+        from {
+          opacity: 1;
+          transform: translateX(0);
+        }
+        to {
+          opacity: 0;
+          transform: translateX(100px);
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+      notification.style.animation = 'slideOutRight 0.3s ease-out';
+      setTimeout(() => notification.remove(), 300);
+    }, 3000);
+  }
+
   async function logout() {
     try {
       await fetch('php/logout.php', {
@@ -857,25 +1012,74 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ==================== WEBSOCKET ====================
   function initializeWebSocket() {
-    // Forzar WSS si la página es HTTPS para evitar Mixed Content
+    // Detectar automáticamente el protocolo según la página
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const wsUrl = `${protocol}://192.168.1.69:3000`;
+    const httpProtocol = window.location.protocol === 'https:' ? 'https' : 'http';
+    const wsUrl = `${protocol}://192.168.1.70:3000`;
+    const httpUrl = `${httpProtocol}://192.168.1.70:3000`;
+    
     console.log(`[WS] Conectando a: ${wsUrl}`);
-    // Si usas certificados self-signed, el navegador puede advertir o bloquear la conexión.
-    // Para desarrollo, acepta el certificado manualmente en https://192.168.1.68:3000 en el navegador.
+    
+    // Crear iframe invisible para pre-cargar el servidor
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'display:none;width:0;height:0;border:none;position:absolute;';
+    iframe.src = httpUrl;
+    
+    iframe.onerror = () => {
+      console.warn('[WS] No se pudo cargar iframe del servidor');
+    };
+    
+    document.body.appendChild(iframe);
+    
+    // Delay para HTTPS, conexión inmediata para HTTP
+    const delay = window.location.protocol === 'https:' ? 500 : 200;
+    setTimeout(() => {
+      connectWebSocket(wsUrl);
+    }, delay);
+  }
+  
+  function connectWebSocket(wsUrl) {
     socket = io(wsUrl, {
       transports: ['websocket', 'polling'],
-      // Nota: 'rejectUnauthorized' solo aplica en Node.js, no en navegadores
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 10,
+      timeout: 20000
     });
+    
+    setupSocketListeners();
+  }
+  
+  function setupSocketListeners() {
+    if (!socket) return;
+    
+    let connectionAttempts = 0;
+    let hasShownAlert = false;
     
     socket.on('connect', () => {
       console.log('✅ Conectado al servidor WebSocket');
+      connectionAttempts = 0; // Reset intentos al conectar exitosamente
+      hasShownAlert = false;
       // Registrar usuario en el WebSocket
       socket.emit('user_connected', currentUser);
+      // Remover cualquier notificación de error previa
+      const existingAlert = document.getElementById('wsConnectionAlert');
+      if (existingAlert) existingAlert.remove();
     });
 
     socket.on('disconnect', () => {
       console.log('❌ Desconectado del servidor WebSocket');
+    });
+    
+    socket.on('connect_error', (error) => {
+      connectionAttempts++;
+      console.error('❌ Error de conexión WebSocket:', error);
+      
+      // Mostrar alerta solo después de varios intentos fallidos
+      if (connectionAttempts >= 5 && !hasShownAlert) {
+        hasShownAlert = true;
+        showWebSocketConnectionAlert();
+      }
     });
 
     // Escuchar nuevos mensajes
@@ -973,6 +1177,104 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('webrtc_end_call', () => {
       endCall(false);
     });
+  }
+
+  // Función para mostrar alerta de conexión WebSocket
+  function showWebSocketConnectionAlert() {
+    const existingAlert = document.getElementById('wsConnectionAlert');
+    if (existingAlert) return;
+    
+    const protocol = window.location.protocol === 'https:' ? 'https' : 'http';
+    const wsServerUrl = `${protocol}://192.168.1.70:3000`;
+    
+    const alertDiv = document.createElement('div');
+    alertDiv.id = 'wsConnectionAlert';
+    alertDiv.style.cssText = `
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10000;
+      background: linear-gradient(135deg, #f59e0b 0%, #dc2626 100%);
+      color: white;
+      padding: 20px 30px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      max-width: 520px;
+      text-align: center;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      animation: slideDown 0.3s ease-out;
+    `;
+    
+    const isHttps = window.location.protocol === 'https:';
+    const instruction = isHttps 
+      ? 'Para HTTPS, necesitas aceptar el certificado del servidor (solo una vez).'
+      : 'Verifica que el servidor WebSocket esté ejecutándose.';
+    
+    alertDiv.innerHTML = `
+      <div style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">
+        ⚠️ Servidor WebSocket Desconectado
+      </div>
+      <div style="font-size: 14px; margin-bottom: 15px; opacity: 0.95;">
+        ${instruction}
+      </div>
+      <div style="font-size: 13px; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; margin-bottom: 15px; text-align: left;">
+        <strong>Para iniciar el servidor:</strong><br>
+        1. Abre terminal en: <code>websocket/</code><br>
+        2. Ejecuta: <code>npm start</code>
+      </div>
+      <a href="${wsServerUrl}" target="_blank" style="
+        display: inline-block;
+        background: white;
+        color: #dc2626;
+        padding: 12px 28px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: bold;
+        margin-right: 10px;
+        transition: all 0.2s;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+        ${isHttps ? '🔓 Aceptar Certificado' : '🔍 Verificar Servidor'}
+      </a>
+      <button onclick="this.parentElement.remove()" style="
+        background: rgba(255,255,255,0.15);
+        color: white;
+        border: 1px solid rgba(255,255,255,0.5);
+        padding: 12px 28px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: all 0.2s;
+      " onmouseover="this.style.background='rgba(255,255,255,0.25)'" 
+         onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+        Cerrar
+      </button>
+      ${isHttps ? `
+        <div style="font-size: 12px; margin-top: 15px; opacity: 0.85; line-height: 1.5;">
+          <strong>Paso 1:</strong> Haz clic en "Aceptar Certificado"<br>
+          <strong>Paso 2:</strong> Acepta el certificado en la nueva ventana<br>
+          <strong>Paso 3:</strong> Regresa y recarga (F5)
+        </div>
+      ` : ''}
+    `;
+    
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes slideDown {
+        from {
+          opacity: 0;
+          transform: translateX(-50%) translateY(-20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(-50%) translateY(0);
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    document.body.appendChild(alertDiv);
   }
 
   async function startCall(targetUserId) {
@@ -1106,6 +1408,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const msgDiv = document.createElement('div');
     msgDiv.className = `msg ${isMe ? 'msg-me' : 'msg-peer'}`;
     
+    // Descifrar el mensaje si está cifrado y el cifrado está activado
+    let displayContent = msg.content;
+    if (msg.is_encrypted && encryptionEnabled) {
+      displayContent = decryptMessage(msg.content);
+    } else if (msg.is_encrypted && !encryptionEnabled) {
+      displayContent = '🔒 [Mensaje cifrado - Activa el cifrado para ver]';
+    }
+    
     let innerHTML = '';
     
     if (currentChatType === 'group' && !isMe) {
@@ -1133,19 +1443,19 @@ document.addEventListener('DOMContentLoaded', () => {
         </video></div>`;
       } else if (msg.attachment.type === 'location') {
         innerHTML += `<div class="msg-attachment" style="margin-top:6px;">
-          ${escapeHtml(msg.content)}<br>
+          ${escapeHtml(displayContent)}<br>
           <a href="${msg.attachment.url}" target="_blank" class="btn btn-sm btn-primary" style="margin-top:4px;">
             🗺️ Ver en Google Maps
           </a>
         </div>`;
       } else {
         const safeName = escapeHtml(msg.attachment.fileName || 'Archivo');
-        innerHTML += `<br>${escapeHtml(msg.content)}<br><div class="msg-attachment" style="margin-top:6px;"><a href="${msg.attachment.url}" target="_blank" rel="noopener" class="file-link">📎 ${safeName}</a></div>`;
+        innerHTML += `<br>${escapeHtml(displayContent)}<br><div class="msg-attachment" style="margin-top:6px;"><a href="${msg.attachment.url}" target="_blank" rel="noopener" class="file-link">📎 ${safeName}</a></div>`;
       }
       innerHTML += `<span class="time">${formatTime(msg.created_at || new Date().toISOString())}</span>`;
     } else {
       // Solo mostrar contenido de texto si no hay adjunto visual
-      innerHTML += `${escapeHtml(msg.content)}<span class="time">${formatTime(msg.created_at || new Date().toISOString())}</span>`;
+      innerHTML += `${escapeHtml(displayContent)}<span class="time">${formatTime(msg.created_at || new Date().toISOString())}</span>`;
     }
     msgDiv.innerHTML = innerHTML;
     

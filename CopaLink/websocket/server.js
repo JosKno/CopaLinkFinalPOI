@@ -9,30 +9,31 @@ const path = require('path');
 const app = express();
 app.use(cors());
 
-// Intentar cargar certificados para HTTPS (self-signed)
+// Soportar HTTPS si hay certificados, sino HTTP
 let protocolServer;
+let usingHttps = false;
+
 try {
   const pfxPath = path.join(__dirname, 'certs', 'server.pfx');
   const keyPath = path.join(__dirname, 'certs', 'server.key');
   const certPath = path.join(__dirname, 'certs', 'server.crt');
   
-  // Preferir PFX si existe (más simple en Windows)
   if (fs.existsSync(pfxPath)) {
     const pfx = fs.readFileSync(pfxPath);
     protocolServer = https.createServer({ pfx, passphrase: 'copalink123' }, app);
+    usingHttps = true;
     console.log('[WS] ✅ HTTPS habilitado (usando server.pfx)');
   } 
-  // Fallback a key+cert separados
   else if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
     const key = fs.readFileSync(keyPath);
     const cert = fs.readFileSync(certPath);
     protocolServer = https.createServer({ key, cert }, app);
+    usingHttps = true;
     console.log('[WS] ✅ HTTPS habilitado (usando key+cert)');
   } 
-  // Sin certificados: HTTP simple
   else {
     protocolServer = http.createServer(app);
-    console.log('[WS] ⚠️  Certificados no encontrados, usando HTTP simple');
+    console.log('[WS] ⚠️  Certificados no encontrados, usando HTTP');
   }
 } catch (e) {
   protocolServer = http.createServer(app);
@@ -87,8 +88,65 @@ function updateUserStatusInDB(userId, status = 'offline') {
   });
 }
 
-// Ruta de prueba
+// Ruta de prueba - Servir HTML simple para iframe
 app.get('/', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>CopaLink WebSocket Server</title>
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          height: 100vh;
+          margin: 0;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+        }
+        .container {
+          text-align: center;
+          padding: 40px;
+          background: rgba(255,255,255,0.1);
+          border-radius: 20px;
+          backdrop-filter: blur(10px);
+        }
+        h1 { margin: 0 0 10px 0; }
+        p { opacity: 0.9; margin: 5px 0; }
+        .status { 
+          display: inline-block;
+          width: 10px;
+          height: 10px;
+          background: #4ade80;
+          border-radius: 50%;
+          margin-right: 8px;
+          animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h1>🔌 CopaLink WebSocket</h1>
+        <p><span class="status"></span>Servidor activo</p>
+        <p>Usuarios conectados: ${connectedUsers.size}</p>
+        <p style="font-size: 12px; margin-top: 20px; opacity: 0.7;">
+          Este servidor maneja mensajes en tiempo real y videollamadas
+        </p>
+      </div>
+    </body>
+    </html>
+  `);
+});
+
+// API endpoint para verificar estado
+app.get('/api/status', (req, res) => {
   res.json({ 
     status: 'online', 
     message: 'Servidor WebSocket de CopaLink funcionando',
@@ -251,7 +309,7 @@ protocolServer.listen(PORT, '0.0.0.0', () => {
   console.log(`====================================`);
   console.log(`🚀 Servidor WebSocket iniciado`);
   console.log(`📡 Puerto: ${PORT}`);
-  console.log(`🌐 URL: http${protocolServer instanceof https.Server ? 's' : ''}://localhost:${PORT}`);
-  console.log(`🔐 Modo: ${protocolServer instanceof https.Server ? 'HTTPS/WSS' : 'HTTP/WS'}`);
+  console.log(`🌐 URL: http${usingHttps ? 's' : ''}://localhost:${PORT}`);
+  console.log(`🔐 Modo: ${usingHttps ? 'HTTPS/WSS' : 'HTTP/WS'}`);
   console.log(`====================================`);
 });
