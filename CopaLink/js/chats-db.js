@@ -393,9 +393,12 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const status = encryptionEnabled ? 'activado' : 'desactivado';
     const icon = encryptionEnabled ? '🔒' : '🔓';
+    const message = encryptionEnabled 
+      ? `${icon} Cifrado activado - Los mensajes se guardan cifrados en la base de datos`
+      : `${icon} Cifrado desactivado - Los mensajes se guardan en texto plano`;
     
     // Mostrar notificación
-    showNotification(`${icon} Cifrado ${status}`, encryptionEnabled ? 'success' : 'info');
+    showNotification(message, encryptionEnabled ? 'success' : 'info');
   });
 
   // Actualizar texto del botón según el estado
@@ -730,12 +733,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const msgDiv = document.createElement('div');
       msgDiv.className = `msg ${isMe ? 'msg-me' : 'msg-peer'}`;
       
-      // Descifrar el mensaje si está cifrado
+      // Descifrar el mensaje si está cifrado para mostrarlo siempre en texto plano
       let displayContent = msg.content;
-      if (msg.is_encrypted && encryptionEnabled) {
-        displayContent = decryptMessage(msg.content);
-      } else if (msg.is_encrypted && !encryptionEnabled) {
-        displayContent = '🔒 [Mensaje cifrado - Activa el cifrado para ver]';
+      if (msg.is_encrypted) {
+        try {
+          displayContent = decryptMessage(msg.content);
+        } catch (e) {
+          console.error('Error al descifrar mensaje:', e);
+          displayContent = msg.content; // Mostrar texto cifrado si falla
+        }
       }
       
       let innerHTML = '';
@@ -893,7 +899,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Función simple de cifrado usando XOR con la clave
   function encryptMessage(text) {
-    if (!encryptionEnabled || !text) return text;
+    if (!text) return text;
     
     try {
       let encrypted = '';
@@ -909,9 +915,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Función de descifrado
+  // Función de descifrado - siempre descifra si el mensaje está marcado como cifrado
   function decryptMessage(encryptedText) {
-    if (!encryptionEnabled || !encryptedText) return encryptedText;
+    if (!encryptedText) return encryptedText;
     
     try {
       // Decodificar de Base64
@@ -943,6 +949,8 @@ document.addEventListener('DOMContentLoaded', () => {
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-weight: 500;
+      font-size: 14px;
+      max-width: 350px;
       animation: slideInRight 0.3s ease-out;
     `;
     notification.textContent = message;
@@ -1408,12 +1416,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const msgDiv = document.createElement('div');
     msgDiv.className = `msg ${isMe ? 'msg-me' : 'msg-peer'}`;
     
-    // Descifrar el mensaje si está cifrado y el cifrado está activado
+    // Descifrar el mensaje si está cifrado para mostrarlo siempre en texto plano
     let displayContent = msg.content;
-    if (msg.is_encrypted && encryptionEnabled) {
-      displayContent = decryptMessage(msg.content);
-    } else if (msg.is_encrypted && !encryptionEnabled) {
-      displayContent = '🔒 [Mensaje cifrado - Activa el cifrado para ver]';
+    if (msg.is_encrypted) {
+      try {
+        displayContent = decryptMessage(msg.content);
+      } catch (e) {
+        console.error('Error al descifrar mensaje:', e);
+        displayContent = msg.content; // Mostrar texto cifrado si falla
+      }
     }
     
     let innerHTML = '';

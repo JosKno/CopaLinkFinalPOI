@@ -2,16 +2,16 @@
 
 ## ✨ Funcionalidad implementada
 
-El sistema permite **cifrar todos los mensajes** (chats privados y grupos) con un solo click.
+El sistema permite **cifrar mensajes en la base de datos** con un solo click, mientras que en la interfaz siempre se ven en texto plano.
 
 ### 🎯 Características:
 
 - ✅ **Activación/Desactivación simple**: Un botón en el menú de usuario
-- ✅ **Cifrado automático**: Todos los mensajes nuevos se cifran automáticamente
+- ✅ **Cifrado transparente**: Los mensajes se cifran en BD pero se ven normales en la UI
 - ✅ **Persistente**: El estado se guarda en localStorage
-- ✅ **Indicador visual**: El input cambia de color cuando el cifrado está activo
+- ✅ **Indicador visual**: El input cambia de estilo cuando el cifrado está activo
 - ✅ **Compatible con adjuntos**: Funciona con imágenes, videos, archivos y ubicaciones
-- ✅ **Mensajes protegidos**: Los mensajes cifrados no se pueden leer sin activar el cifrado
+- ✅ **Descifrado automático**: Los mensajes cifrados se descifran al cargar
 
 ---
 
@@ -21,14 +21,15 @@ El sistema permite **cifrar todos los mensajes** (chats privados y grupos) con u
 
 1. Haz click en el **icono de usuario** (esquina superior derecha)
 2. Haz click en **🔒 Cifrar chats**
-3. ✅ Ahora todos tus mensajes se envían cifrados
-4. 📝 El input mostrará: **"🔒 Escribe un mensaje cifrado"**
+3. ✅ Ahora todos tus mensajes se guardan cifrados en la BD
+4. 📝 El input mostrará: **"🔒 Escribe un mensaje cifrado"** (borde verde)
+5. 💬 Los mensajes se ven normales en la conversación
 
 ### Desactivar el cifrado:
 
 1. Haz click en el **icono de usuario**
 2. Haz click en **🔓 Descifrar chats**
-3. ✅ Ahora los mensajes se envían sin cifrar
+3. ✅ Ahora los mensajes se guardan sin cifrar en la BD
 
 ---
 
@@ -36,8 +37,9 @@ El sistema permite **cifrar todos los mensajes** (chats privados y grupos) con u
 
 ### Algoritmo de cifrado:
 - **XOR cipher** con clave personalizada
-- **Base64 encoding** para transporte seguro
+- **Base64 encoding** para almacenamiento seguro
 - Clave configurable en el código
+- **Descifrado automático** al mostrar mensajes
 
 ### Importante:
 ⚠️ **Este es un cifrado básico para desarrollo**. Para producción se recomienda:
@@ -51,16 +53,16 @@ El sistema permite **cifrar todos los mensajes** (chats privados y grupos) con u
 ## 📋 Comportamiento:
 
 ### Cuando el cifrado está activado:
-- ✅ Mensajes nuevos se cifran automáticamente
-- ✅ Mensajes cifrados se descifran al mostrarlos
+- ✅ Mensajes nuevos se cifran en la BD automáticamente
+- ✅ Mensajes se ven en texto plano en la UI (descifrados)
 - ✅ Input tiene borde verde y icono 🔒
-- ✅ Notificación: "🔒 Cifrado activado"
+- ✅ Notificación: "🔒 Cifrado activado - Los mensajes se guardan cifrados en la base de datos"
 
 ### Cuando el cifrado está desactivado:
-- ✅ Mensajes nuevos se envían en texto plano
-- ⚠️ Mensajes cifrados anteriores muestran: "🔒 [Mensaje cifrado - Activa el cifrado para ver]"
+- ✅ Mensajes nuevos se guardan sin cifrar en la BD
+- ✅ Mensajes anteriores (cifrados) se descifran automáticamente al mostrar
 - ✅ Input normal
-- ✅ Notificación: "🔓 Cifrado desactivado"
+- ✅ Notificación: "🔓 Cifrado desactivado - Los mensajes se guardan en texto plano"
 
 ---
 
@@ -68,7 +70,7 @@ El sistema permite **cifrar todos los mensajes** (chats privados y grupos) con u
 
 ### Input de mensaje:
 ```
-Cifrado ON:  [🔒 Escribe un mensaje cifrado      ] (borde verde)
+Cifrado ON:  [🔒 Escribe un mensaje cifrado      ] (borde verde brillante)
 Cifrado OFF: [Escribe un mensaje                ] (borde normal)
 ```
 
@@ -78,11 +80,16 @@ Cifrado OFF: 🔒 Cifrar chats
 Cifrado ON:  🔓 Descifrar chats
 ```
 
-### Mensajes:
+### Mensajes en conversación:
 ```
-Mensaje cifrado (cifrado OFF): 🔒 [Mensaje cifrado - Activa el cifrado para ver]
-Mensaje cifrado (cifrado ON):  Hola, ¿cómo estás? (texto descifrado)
-Mensaje normal:                Hola, ¿cómo estás?
+SIEMPRE se ven en texto plano, sin importar si están cifrados en la BD
+Ejemplo: "Hola, ¿cómo estás?"
+```
+
+### En la base de datos:
+```
+Cifrado OFF: "Hola, ¿cómo estás?"
+Cifrado ON:  "SGVsbG8sIMKvcXXDqSBlc3TDoXM/" (Base64)
 ```
 
 ---
@@ -102,9 +109,31 @@ localStorage.getItem('encryptionEnabled') // 'true' o 'false'
 ```
 
 ### Funciones principales:
-- `encryptMessage(text)`: Cifra un mensaje
-- `decryptMessage(encryptedText)`: Descifra un mensaje
+- `encryptMessage(text)`: Cifra un mensaje antes de guardarlo
+- `decryptMessage(encryptedText)`: Descifra un mensaje al cargarlo
 - `updateEncryptButton()`: Actualiza UI según estado
+
+### Flujo de datos:
+
+**Al enviar mensaje:**
+```
+Usuario escribe: "Hola mundo"
+         ↓
+Si cifrado ON: encryptMessage("Hola mundo") → "SGVsbG8gbXVuZG8="
+         ↓
+Se guarda en BD: {content: "SGVsbG8gbXVuZG8=", is_encrypted: true}
+         ↓
+Se muestra en UI: "Hola mundo" (descifrado automáticamente)
+```
+
+**Al cargar mensajes:**
+```
+BD devuelve: {content: "SGVsbG8gbXVuZG8=", is_encrypted: true}
+         ↓
+decryptMessage("SGVsbG8gbXVuZG8=") → "Hola mundo"
+         ↓
+Se muestra en UI: "Hola mundo"
+```
 
 ---
 
