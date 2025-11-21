@@ -1015,8 +1015,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Detectar automáticamente el protocolo según la página
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
     const httpProtocol = window.location.protocol === 'https:' ? 'https' : 'http';
-    const wsUrl = `${protocol}://192.168.1.70:3000`;
-    const httpUrl = `${httpProtocol}://192.168.1.70:3000`;
+    const wsUrl = `${protocol}://192.168.1.66:3000`;
+    const httpUrl = `${httpProtocol}://192.168.1.66:3000`;
     
     console.log(`[WS] Conectando a: ${wsUrl}`);
     
@@ -1185,7 +1185,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (existingAlert) return;
     
     const protocol = window.location.protocol === 'https:' ? 'https' : 'http';
-    const wsServerUrl = `${protocol}://192.168.1.70:3000`;
+    const wsServerUrl = `${protocol}://192.168.1.66:3000`;
     
     const alertDiv = document.createElement('div');
     alertDiv.id = 'wsConnectionAlert';

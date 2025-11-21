@@ -2,7 +2,7 @@
 # Para Windows sin OpenSSL
 
 $certPath = $PSScriptRoot
-$ip = "192.168.1.70"
+$ip = "192.168.1.66"
 
 Write-Host "Generando certificados para $ip..." -ForegroundColor Cyan
 
