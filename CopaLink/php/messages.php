@@ -98,7 +98,7 @@ function getMessages($conn, &$response) {
 
     if ($recipient_id) {
         $stmt = $conn->prepare('
-            SELECT m.id, m.sender_id, m.content, m.is_encrypted, m.created_at, u.username as sender_name,
+            SELECT m.id, m.sender_id, m.content, m.is_encrypted, m.created_at, u.username as sender_name, u.gems,
                    f.file_name, f.file_path, f.file_type
             FROM messages m
             JOIN users u ON m.sender_id = u.id
@@ -110,7 +110,7 @@ function getMessages($conn, &$response) {
         $stmt->bind_param('iiiii', $user_id, $recipient_id, $recipient_id, $user_id, $limit);
     } else if ($group_id) {
         $stmt = $conn->prepare('
-            SELECT m.id, m.sender_id, m.content, m.is_encrypted, m.created_at, u.username as sender_name,
+            SELECT m.id, m.sender_id, m.content, m.is_encrypted, m.created_at, u.username as sender_name, u.gems,
                    f.file_name, f.file_path, f.file_type
             FROM messages m
             JOIN users u ON m.sender_id = u.id

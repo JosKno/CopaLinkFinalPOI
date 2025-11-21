@@ -768,7 +768,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <strong>${msg.sender_name || 'Usuario'}</strong>
             <span class="gems" style="display:inline-flex;align-items:center;gap:6px;font-weight:800;">
               <img src="assets/img/gema.png" alt="Gema" style="width:18px;height:18px;object-fit:contain;">
-              0
+              ${msg.gems || 0}
             </span>
           </div>
         `;
@@ -1035,9 +1035,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ==================== WEBSOCKET ====================
   function initializeWebSocket() {
-    // Detectar automáticamente el protocolo según la página
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const httpProtocol = window.location.protocol === 'https:' ? 'https' : 'http';
+    // SIEMPRE usar WSS ya que el servidor está configurado con HTTPS
+    const protocol = 'wss';
+    const httpProtocol = 'https';
     const wsUrl = `${protocol}://192.168.1.66:3000`;
     const httpUrl = `${httpProtocol}://192.168.1.66:3000`;
     
@@ -1054,8 +1054,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     document.body.appendChild(iframe);
     
-    // Delay para HTTPS, conexión inmediata para HTTP
-    const delay = window.location.protocol === 'https:' ? 500 : 200;
+    // Conexión inmediata para WSS (el certificado ya debe estar aceptado)
+    const delay = 200;
     setTimeout(() => {
       connectWebSocket(wsUrl);
     }, delay);
@@ -1207,8 +1207,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const existingAlert = document.getElementById('wsConnectionAlert');
     if (existingAlert) return;
     
-    const protocol = window.location.protocol === 'https:' ? 'https' : 'http';
-    const wsServerUrl = `${protocol}://192.168.1.66:3000`;
+    const wsServerUrl = `https://192.168.1.66:3000`;
     
     const alertDiv = document.createElement('div');
     alertDiv.id = 'wsConnectionAlert';
@@ -1229,20 +1228,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       animation: slideDown 0.3s ease-out;
     `;
     
-    const isHttps = window.location.protocol === 'https:';
-    const instruction = isHttps 
-      ? 'Para HTTPS, necesitas aceptar el certificado del servidor (solo una vez).'
-      : 'Verifica que el servidor WebSocket esté ejecutándose.';
-    
     alertDiv.innerHTML = `
       <div style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">
         ⚠️ Servidor WebSocket Desconectado
       </div>
       <div style="font-size: 14px; margin-bottom: 15px; opacity: 0.95;">
-        ${instruction}
+        El servidor usa HTTPS/WSS. Necesitas aceptar el certificado autofirmado (solo una vez).
       </div>
       <div style="font-size: 13px; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; margin-bottom: 15px; text-align: left;">
-        <strong>Para iniciar el servidor:</strong><br>
+        <strong>Si el servidor no está corriendo:</strong><br>
         1. Abre terminal en: <code>websocket/</code><br>
         2. Ejecuta: <code>npm start</code>
       </div>
@@ -1258,7 +1252,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         transition: all 0.2s;
         box-shadow: 0 2px 8px rgba(0,0,0,0.2);
       " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-        ${isHttps ? '🔓 Aceptar Certificado' : '🔍 Verificar Servidor'}
+        🔓 Aceptar Certificado
       </a>
       <button onclick="this.parentElement.remove()" style="
         background: rgba(255,255,255,0.15);
@@ -1273,13 +1267,11 @@ document.addEventListener('DOMContentLoaded', async () => {
          onmouseout="this.style.background='rgba(255,255,255,0.15)'">
         Cerrar
       </button>
-      ${isHttps ? `
-        <div style="font-size: 12px; margin-top: 15px; opacity: 0.85; line-height: 1.5;">
-          <strong>Paso 1:</strong> Haz clic en "Aceptar Certificado"<br>
-          <strong>Paso 2:</strong> Acepta el certificado en la nueva ventana<br>
-          <strong>Paso 3:</strong> Regresa y recarga (F5)
-        </div>
-      ` : ''}
+      <div style="font-size: 12px; margin-top: 15px; opacity: 0.85; line-height: 1.5;">
+        <strong>Paso 1:</strong> Haz clic en "Aceptar Certificado"<br>
+        <strong>Paso 2:</strong> Acepta el certificado en la nueva ventana (avanzado → continuar)<br>
+        <strong>Paso 3:</strong> Regresa a esta pestaña y recarga (F5)
+      </div>
     `;
     
     const style = document.createElement('style');
@@ -1450,7 +1442,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <strong>${msg.sender_name || 'Usuario'}</strong>
           <span class="gems" style="display:inline-flex;align-items:center;gap:6px;font-weight:800;">
             <img src="assets/img/gema.png" alt="Gema" style="width:18px;height:18px;object-fit:contain;">
-            0
+            ${msg.gems || 0}
           </span>
         </div>
       `;
