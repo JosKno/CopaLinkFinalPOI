@@ -1,5 +1,5 @@
 // js/chats-db.js - Sistema de chat con PHP/MySQL y WebSocket
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
   let currentChatId = null;
   let currentChatType = 'private'; // 'private' o 'group'
@@ -300,10 +300,21 @@ document.addEventListener('DOMContentLoaded', () => {
     menuUserName.textContent = currentUser.username || currentUser.email;
   }
 
-  // Mostrar gemas del usuario en el menú
+  // Cargar gemas del usuario desde la base de datos
   const menuUserGems = document.getElementById('menuUserGems');
-  if (menuUserGems && currentUser.gems !== undefined) {
-    menuUserGems.textContent = currentUser.gems;
+  if (menuUserGems) {
+    // Inicializar gestor de gemas y cargar balance actual
+    try {
+      await gemsManager.initialize(currentUser.id);
+      const balance = await gemsManager.getBalance();
+      menuUserGems.textContent = balance;
+      // Actualizar también en currentUser para mantener consistencia
+      currentUser.gems = balance;
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    } catch (err) {
+      console.error('Error al cargar gemas:', err);
+      menuUserGems.textContent = currentUser.gems || 0;
+    }
   }
 
   // Cargar lista de usuarios y grupos
@@ -598,8 +609,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const chatItem = document.createElement('a');
       chatItem.className = 'chatitem';
       chatItem.href = '#';
+      
+      // Agregar clase de marco si tiene recompensa activa
+      const rewardClass = user.active_reward_id ? `reward-${user.active_reward_id}` : '';
+      
       chatItem.innerHTML = `
-        <div class="avatar ${user.connection_status === 'online' ? 'online' : ''}" data-user-id="${user.id}">${user.username.charAt(0).toUpperCase()}</div>
+        <div class="avatar ${user.connection_status === 'online' ? 'online' : ''} ${rewardClass}" data-user-id="${user.id}">${user.username.charAt(0).toUpperCase()}</div>
         <div class="meta">
           <div class="row1">
             <span>${user.username}</span>

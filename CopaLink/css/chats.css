@@ -191,6 +191,59 @@
   border:1px solid rgba(255,255,255,.12);
 }
 .avatar.grp{ background: linear-gradient(135deg, #1f2937, #0a1b3c); }
+
+/* Marcos de recompensas */
+.avatar.reward-1 {
+  border: 3px solid #fbbf24;
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
+}
+
+.avatar.reward-2 {
+  border: 3px solid #d1d5db;
+  box-shadow: 0 0 10px rgba(209, 213, 219, 0.5);
+}
+
+.avatar.reward-3 {
+  border: 3px solid transparent;
+  background: linear-gradient(135deg,#1f2937,#111827) padding-box,
+              linear-gradient(135deg, #f87171, #fbbf24, #a3e635, #60a5fa, #a78bfa) border-box;
+  box-shadow: 0 0 15px rgba(251, 191, 36, 0.6);
+}
+
+.avatar.reward-4 {
+  border: 3px solid #60a5fa;
+  box-shadow: 0 0 15px rgba(96, 165, 250, 0.8);
+  animation: neonPulse 2s infinite;
+}
+
+.avatar.reward-5 {
+  border: 3px solid #a78bfa;
+  box-shadow: 0 0 20px rgba(167, 139, 250, 0.9),
+              0 0 30px rgba(251, 191, 36, 0.5);
+  animation: diamondShine 3s infinite;
+}
+
+@keyframes neonPulse {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(96, 165, 250, 0.8);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(96, 165, 250, 1),
+                0 0 35px rgba(96, 165, 250, 0.6);
+  }
+}
+
+@keyframes diamondShine {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(167, 139, 250, 0.9),
+                0 0 30px rgba(251, 191, 36, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(167, 139, 250, 1),
+                0 0 45px rgba(251, 191, 36, 0.8);
+  }
+}
+
 .avatar.online::after {
   content: '';
   position: absolute;

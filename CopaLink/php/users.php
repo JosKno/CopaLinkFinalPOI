@@ -49,14 +49,21 @@ function getUsersList($conn, &$response) {
         return;
     }
 
-    $stmt = $conn->prepare('SELECT id, username, email, connection_status, last_seen FROM users WHERE id != ? ORDER BY username ASC');
+    $stmt = $conn->prepare('SELECT id, username, email, connection_status, last_seen, active_reward_id FROM users WHERE id != ? ORDER BY username ASC');
     $stmt->bind_param('i', $user_id);
     $stmt->execute();
     $result = $stmt->get_result();
     $users = [];
 
     while ($row = $result->fetch_assoc()) {
-        $users[] = $row;
+        $users[] = [
+            'id' => (int)$row['id'],
+            'username' => $row['username'],
+            'email' => $row['email'],
+            'connection_status' => $row['connection_status'],
+            'last_seen' => $row['last_seen'],
+            'active_reward_id' => $row['active_reward_id'] ? (int)$row['active_reward_id'] : null
+        ];
     }
 
     $response['success'] = true;
@@ -72,7 +79,7 @@ function getUserProfile($conn, &$response) {
         return;
     }
 
-    $stmt = $conn->prepare('SELECT id, username, email, connection_status, last_seen, created_at FROM users WHERE id = ?');
+    $stmt = $conn->prepare('SELECT id, username, email, connection_status, last_seen, created_at, active_reward_id FROM users WHERE id = ?');
     $stmt->bind_param('i', $user_id);
     $stmt->execute();
     $result = $stmt->get_result();

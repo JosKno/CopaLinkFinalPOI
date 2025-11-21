@@ -32,6 +32,7 @@
             <img class="gem-icon" src="assets/img/gema.png" alt="Gemas" />
             <span class="gem-count" id="menuUserGems" data-gems-display>--</span>
           </div>
+          <a href="tienda.php" class="menu-item" style="text-decoration: none; color: inherit; display: block;">🏆 Tienda de Recompensas</a>
           <button class="menu-item" id="btnEncrypt">Cifrar chats</button>
           <button class="menu-item danger" id="btnLogoutMenu">Cerrar sesión</button>
         </div>

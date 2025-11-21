@@ -1,5 +1,5 @@
 // simulador.js — Parte 1/5
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   // ===== Refs UI =====
   const groupsGrid   = document.getElementById('groupsGrid');
   const btnGenerate  = document.getElementById('btnGenerate');
@@ -38,6 +38,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const resultsReward = document.getElementById('resultsReward');
   const resultsNetGain = document.getElementById('resultsNetGain');
   const resultsNewBalance = document.getElementById('resultsNewBalance');
+
+  // ===== Inicializar y cargar gemas del usuario =====
+  const currentUserData = JSON.parse(localStorage.getItem('currentUser'));
+  if (currentUserData) {
+    try {
+      await gemsManager.initialize(currentUserData.id);
+      const balance = await gemsManager.getBalance();
+      currentUserData.gems = balance;
+      localStorage.setItem('currentUser', JSON.stringify(currentUserData));
+      // Actualizar displays de gemas
+      const gemsDisplay = document.querySelectorAll('[data-gems-display]');
+      gemsDisplay.forEach(el => el.textContent = balance);
+    } catch (err) {
+      console.error('Error al cargar gemas:', err);
+    }
+  }
 
   // ===== Config =====
   const GROUPS = Array.from({ length: 12 }, (_, i) => String.fromCharCode(65 + i)); // A..L
