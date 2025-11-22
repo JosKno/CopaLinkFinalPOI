@@ -9,36 +9,12 @@ const path = require('path');
 const app = express();
 app.use(cors());
 
-// Soportar HTTPS si hay certificados, sino HTTP
+// Usar HTTP simple - ngrok maneja el SSL
 let protocolServer;
 let usingHttps = false;
 
-try {
-  const pfxPath = path.join(__dirname, 'certs', 'server.pfx');
-  const keyPath = path.join(__dirname, 'certs', 'server.key');
-  const certPath = path.join(__dirname, 'certs', 'server.crt');
-  
-  if (fs.existsSync(pfxPath)) {
-    const pfx = fs.readFileSync(pfxPath);
-    protocolServer = https.createServer({ pfx, passphrase: 'copalink123' }, app);
-    usingHttps = true;
-    console.log('[WS] ✅ HTTPS habilitado (usando server.pfx)');
-  } 
-  else if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
-    const key = fs.readFileSync(keyPath);
-    const cert = fs.readFileSync(certPath);
-    protocolServer = https.createServer({ key, cert }, app);
-    usingHttps = true;
-    console.log('[WS] ✅ HTTPS habilitado (usando key+cert)');
-  } 
-  else {
-    protocolServer = http.createServer(app);
-    console.log('[WS] ⚠️  Certificados no encontrados, usando HTTP');
-  }
-} catch (e) {
-  protocolServer = http.createServer(app);
-  console.log('[WS] ❌ Error cargando certificados, usando HTTP:', e.message);
-}
+protocolServer = http.createServer(app);
+console.log('[WS] ℹ️  Usando HTTP (ngrok maneja SSL)');
 
 const io = socketIO(protocolServer, {
   cors: {

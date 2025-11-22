@@ -1046,11 +1046,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   function connectWebSocket(wsUrl) {
     socket = io(wsUrl, {
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: 10,
-      timeout: 20000
+      timeout: 20000,
+      upgrade: true
     });
     
     setupSocketListeners();
