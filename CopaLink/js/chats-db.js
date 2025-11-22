@@ -1035,30 +1035,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ==================== WEBSOCKET ====================
   function initializeWebSocket() {
-    // SIEMPRE usar WSS ya que el servidor está configurado con HTTPS
-    const protocol = 'wss';
-    const httpProtocol = 'https';
-    const wsUrl = `${protocol}://192.168.1.66:3000`;
-    const httpUrl = `${httpProtocol}://192.168.1.66:3000`;
+    // URL de ngrok para WebSocket
+    const wsUrl = 'https://copalink-ws.ngrok.app';
     
     console.log(`[WS] Conectando a: ${wsUrl}`);
     
-    // Crear iframe invisible para pre-cargar el servidor
-    const iframe = document.createElement('iframe');
-    iframe.style.cssText = 'display:none;width:0;height:0;border:none;position:absolute;';
-    iframe.src = httpUrl;
-    
-    iframe.onerror = () => {
-      console.warn('[WS] No se pudo cargar iframe del servidor');
-    };
-    
-    document.body.appendChild(iframe);
-    
-    // Conexión inmediata para WSS (el certificado ya debe estar aceptado)
-    const delay = 200;
-    setTimeout(() => {
-      connectWebSocket(wsUrl);
-    }, delay);
+    // Conexión directa - ngrok maneja HTTPS automáticamente
+    connectWebSocket(wsUrl);
   }
   
   function connectWebSocket(wsUrl) {

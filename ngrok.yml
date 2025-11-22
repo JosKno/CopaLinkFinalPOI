@@ -1,0 +1,16 @@
+version: 2
+authtoken: 35nt5dAb1j5DCebvFkg2zHEnJXc_2ThJkXRBsN1etyWMsEGmQ
+region: us
+
+tunnels:
+  apache:
+    addr: 80
+    proto: http
+    domain: copalink-app.ngrok.app
+    inspect: false
+  
+  websocket:
+    addr: 3000
+    proto: http
+    domain: copalink-ws.ngrok.app
+    inspect: true
