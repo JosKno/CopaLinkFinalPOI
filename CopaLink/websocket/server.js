@@ -18,8 +18,14 @@ console.log('[WS] ℹ️  Usando HTTP (ngrok maneja SSL)');
 
 const io = socketIO(protocolServer, {
   cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
+    origin: [
+      "https://copalink-app.ngrok.app",
+      "https://copalink-ws.ngrok.app",
+      "http://localhost",
+      "https://localhost"
+    ],
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
